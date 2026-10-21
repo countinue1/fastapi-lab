@@ -1,6 +1,15 @@
+import os 
+import asyncio
 from fastapi import FastAPI
+import httpx, json
 from pydantic import BaseModel
 from fastapi import HTTPException
+from fastapi import UploadFile
+from fastapi.responses import StreamingResponse
+
+
+
+
 
 app = FastAPI()
 
@@ -70,3 +79,61 @@ def delete_todo(todo_id: int):
         raise HTTPException(status_code=404, detail="Todo not fonund")
     del todos[todo_id]
     return {"message": "deleted"}    
+
+
+os.makedirs("uploads", exist_ok=True)
+
+@app.post("/upload")
+async def upload(file: UploadFile):
+    内容 = await file.read()
+    with open(f"uploads/{file.filename}", "wb") as f:
+        f.write(内容)
+    return {"filename": file.filename, "size": len(内容)}
+
+
+
+async def 假装生成():
+    文本 = "你好，我是流式输出，一个字一个字来。就像打字机一眼，慢慢出现。"
+    for 字 in 文本:
+        yield 字
+        await asyncio.sleep(0.5)
+
+
+@app.get("/stream")
+async def stream():
+    return StreamingResponse(假装生成(), media_type="text/plain")
+
+async def 流式问模型(问题: str):
+    async with httpx.AsyncClient(timeout=120) as client:
+        async with client.stream(
+             "POST","http://localhost:11434/api/chat",
+             json={"model":"qwen2.5:7b",
+                   "messages":[{"role":"user", "content": 问题}],
+                   "stream":True},
+                   ) as resp:
+                       async for 行 in resp.aiter_lines():
+                           if 行.strip():
+                               数据 = json.loads(行)
+                               片段 = 数据.get("message", {}).get("content", "")
+                               if 片段:
+                                   yield 片段
+
+
+@app.get("/ask")
+async def ask(q: str):
+    return StreamingResponse(流式问模型(q), media_type="text/plain")
+                
+                                 
+            
+
+
+
+
+
+
+
+
+
+
+
+
