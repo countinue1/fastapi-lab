@@ -1,5 +1,6 @@
 import os 
 import asyncio
+import redis
 from fastapi import FastAPI
 import pymysql
 import httpx, json
@@ -145,18 +146,20 @@ def get_todos():
     return rows
 
 #在数据库上进行查找
-@app.get("/todos/{todo_id}")
-def get_todo(todo_id: int):
-    conn = get_conn()
-    cursor = conn.cursor()
-    cursor.execute("select * from todos where id = %s;", (todo_id,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return row
+# @app.get("/todos/{todo_id}")
+# def get_todo(todo_id: int):
+#     conn = get_conn()
+#     cursor = conn.cursor()
+#     cursor.execute("select * from todos where id = %s;", (todo_id,))
+#     row = cursor.fetchone()
+#     cursor.close()
+#     conn.close()
+#     if not row:
+#         raise HTTPException(status_code=404, detail="Todo not found")
+#     return row
 
+
+r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 #在数据里新增
 @app.post("/todos",status_code=201)
 def create_todo(todo: Todo):
@@ -182,6 +185,7 @@ def update_todo(todo_id: int, todo: Todo):
         (todo.title, todo.done, todo_id),
     )
     conn.commit()
+    r.delete(f"todo:{todo_id}")
     affected = cursor.rowcount
     cursor.close()
     conn.close()
@@ -196,6 +200,7 @@ def delete_todo(todo_id: int):
     cursor = conn.cursor()
     cursor.execute("delete from todos where id = %s;", (todo_id,))
     conn.commit()
+    r.delete(f"todo:{todo_id}")
     affected = cursor.rowcount
     cursor.close()
     conn.close()
@@ -205,6 +210,22 @@ def delete_todo(todo_id: int):
 
 
 
+
+@app.get("/todos/{todo_id}")
+def get_todo(todo_id: int):
+    cached = r.get(f"todo:{todo_id}")
+    if cached:
+        return json.loads(cached)
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("select * from todos where id = %s;", (todo_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Todo not found")
+    r.set(f"todo:{todo_id}", json.dumps(row))
+    return row
 
 
 
