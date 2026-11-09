@@ -133,7 +133,7 @@ def get_conn():
     return pymysql.connect(
         host=os.environ.get("DB_HOST", "localhost"),
         user="root",
-        password=os.environ.get("DB_PASSWORD", "12345678901313zk"),
+        password=os.environ.get("DB_PASSWORD", ""),
         database="fastapi_lab",
         cursorclass=pymysql.cursors.DictCursor,
     )
