@@ -127,13 +127,15 @@ async def ask(q: str):
                 
                                  
 #数据库的连接与操作
+import os
+
 def get_conn():
     return pymysql.connect(
-        host = 'localhost',
-        user = 'root',
-        password = '12345678901313zk',
-        database = 'fastapi_lab',
-        cursorclass = pymysql.cursors.DictCursor
+        host=os.environ.get("DB_HOST", "localhost"),
+        user="root",
+        password=os.environ.get("DB_PASSWORD", "12345678901313zk"),
+        database="fastapi_lab",
+        cursorclass=pymysql.cursors.DictCursor,
     )
 #获取数据库连接
 @app.get("/todos")
@@ -159,7 +161,8 @@ def get_todos():
 #     return row
 
 
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+r = redis.Redis(host=os.environ.get('REDIS_HOST', 'localhost'), port=6379, decode_responses=True)
+
 #在数据里新增
 @app.post("/todos",status_code=201)
 def create_todo(todo: Todo):
